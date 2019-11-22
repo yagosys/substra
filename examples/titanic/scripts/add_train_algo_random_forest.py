@@ -18,22 +18,16 @@ import zipfile
 
 import substra
 
-NODE_ID = 1
+NODE_ID = 2
 DATASET_NAME = "Titanic"
 OBJECTIVE_NAME = "Titanic"
 
 current_directory = os.path.dirname(__file__)
 assets_directory = os.path.join(current_directory, '../assets')
 
-with open(os.path.join(current_directory, f'../../config_node{NODE_ID}.json'), 'r') as f:
-# with open(os.path.join(current_directory, '/Users/camillemarini/Desktop/config_node2.json'), 'r') as f:
-    config = json.load(f)
-
-client = substra.Client()
-client.add_profile(config['profile_name'], config['username'], config['password'],  config['url'])
-client.login()
-
-ALGO_KEYS_JSON_FILENAME = 'algo_random_forest_keys.json'
+########################################################
+#       Define algo metadata
+########################################################
 
 ALGO = {
     'name': 'Titanic: Random Forest',
@@ -47,7 +41,7 @@ ALGO_DOCKERFILE_FILES = [
 ]
 
 ########################################################
-#       Build archive
+#       Build algo archive (Dockerfile resources)
 ########################################################
 
 archive_path = os.path.join(current_directory, 'algo_random_forest.zip')
@@ -57,18 +51,18 @@ with zipfile.ZipFile(archive_path, 'w') as z:
 ALGO['file'] = archive_path
 
 ########################################################
-#       Load keys for dataset and objective
-########################################################
-
-assets_keys_path = os.path.join(current_directory, f'../assets_keys_node{NODE_ID}.json')
-with open(assets_keys_path, 'r') as f:
-    assets_keys = json.load(f)
-
-########################################################
-#         Add algo
+#         Add algo to Substra
 ########################################################
 
 print('Adding algo...')
+
+with open(os.path.join(current_directory, f'../../config_node{NODE_ID}.json'), 'r') as f:
+    config = json.load(f)
+
+client = substra.Client()
+client.add_profile(config['profile_name'], config['username'], config['password'],  config['url'])
+client.login()
+
 algo_key = client.add_algo(ALGO, exist_ok=True)['pkhash']
 
 ########################################################
@@ -77,7 +71,7 @@ algo_key = client.add_algo(ALGO, exist_ok=True)['pkhash']
 
 # Retrieve dataset and objective
 data_manager_keys = [d['key'] for d in client.list_dataset() if DATASET_NAME in d['name']]
-objective_key = [d['key'] for d in client.list_objective() if OBJECTIVE_NAME in 
+objective_key = [d['key'] for d in client.list_objective() if OBJECTIVE_NAME in
                  d['name']][0]
 traintuple_key = None
 traintuple_keys = []
@@ -100,6 +94,7 @@ for data_manager_key in data_manager_keys:
 ########################################################
 #         Add testtuple
 ########################################################
+
 print('Registering testtuple...')
 testtuple = client.add_testtuple({
     'traintuple_key': traintuple_key
@@ -108,14 +103,16 @@ testtuple_key = testtuple.get('key') or testtuple.get('pkhash')
 assert testtuple_key, 'Missing testtuple key'
 
 ########################################################
-#         Save keys in json
+#         Save keys to disk
 ########################################################
 
+assets_keys = {}
 assets_keys['algo_random_forest'] = {
     'algo_key': algo_key,
     'traintuple_key': traintuple_keys,
     'testtuple_key': testtuple_key,
 }
+assets_keys_path = os.path.join(current_directory, f'../assets_keys_node{NODE_ID}.json')
 with open(assets_keys_path, 'w') as f:
     json.dump(assets_keys, f, indent=2)
 
