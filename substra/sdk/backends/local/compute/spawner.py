@@ -94,4 +94,3 @@ class DockerSpawner:
 
         container.remove()
         return execution_logs
-
